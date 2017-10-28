@@ -72,7 +72,7 @@ class Base(Core):
         version numbers is an instance of Version from the SemVer Python package.
         """
         fields = [
-            ('Type', 'type', str),
+            ('Type', 'model', str),
             ('API', 'api', parse_version_number),
             ('Miner', 'version', parse_version_number),
         ]
