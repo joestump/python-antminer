@@ -4,7 +4,7 @@ from antminer.constants import RESPONSE_CODES
 class APIException(Exception):
     def __init__(self, response, message=None):
         try:
-            self.code = int(response['STATUS'][0]['STATUS']['Code'])
+            self.code = int(response['STATUS'][0]['Code'])
         except KeyError, IndexError:
             self.code = 0
 
@@ -23,16 +23,15 @@ class APIException(Exception):
             code=self.code, reason=self.reason)
 
 
-class WarningResponse(Exception):
+class WarningResponse(APIException):
     pass
 
 
-class ErrorResponse(Exception):
+class ErrorResponse(APIException):
     pass
 
-class FatalResponse(Exception):
+class FatalResponse(APIException):
     pass
 
-class UnknownError(Exception):
-    def __init__(self, response):
-        self.response = response
+class UnknownError(APIException):
+    pass

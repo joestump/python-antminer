@@ -42,7 +42,7 @@ class Core(object):
         try:
             return json.loads(result)
         except ValueError:
-            raise UnknownError(result)
+            return result  # Assume downstream code knows what to do.
 
     def read_response(self):
 	done = False
@@ -63,6 +63,17 @@ class Base(Core):
         'E': ErrorResponse,
         'F': FatalResponse
     }
+
+
+    def stats(self):
+        """
+        Get stats for the miner.
+
+        Unfortunately, the API doesn't return valid JSON for this API response, which
+        requires us to do some light JSON correction before we load the response.
+        """
+        response = self.send_command('stats')
+        return json.loads(response.replace('"}{"', '"},{"'))
 
     def version(self):
         """
