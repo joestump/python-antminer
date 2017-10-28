@@ -16,12 +16,16 @@ class Core(object):
     def __init__(self, host, port=DEFAULT_PORT):
         self.host = host
         self.port = int(port)
+        self.conn = None
 
     def connect(self):
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.conn.connect((self.host, self.port))
 
     def send_command(self, command):
+        if self.conn is None:
+            self.connect()
+
         cmd = command.split('|')
         if len(cmd) > 2 or len(cmd) == 0:
             raise ValueError("Commands must be one or two parts")
