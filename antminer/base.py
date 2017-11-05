@@ -3,7 +3,8 @@ import json
 import sys
 
 from antminer.exceptions import (
-    WarningResponse, ErrorResponse, FatalResponse, UnknownError
+    WarningResponse, ErrorResponse, FatalResponse, UnknownError,
+    raise_exception
 )
 from antminer.constants import (
     STATUS_INFO, STATUS_SUCCESS, DEFAULT_PORT, MINER_CGMINER,
@@ -22,6 +23,10 @@ class Core(object):
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.conn.connect((self.host, self.port))
 
+    def close(self):
+        self.conn.close()
+        self.conn = None
+
     def send_command(self, command):
         if self.conn is None:
             self.connect()
@@ -38,11 +43,14 @@ class Core(object):
             payload['parameter'] = cmd[1]
 
         self.conn.send(json.dumps(payload))
-        result = self.read_response()
+        payload = self.read_response()
         try:
-            return json.loads(result)
+            response = json.loads(payload)
         except ValueError:
-            return result  # Assume downstream code knows what to do.
+            response = payload# Assume downstream code knows what to do.
+
+        self.close()
+        return response
 
     def read_response(self):
 	done = False
@@ -56,14 +64,38 @@ class Core(object):
 
         return buf.replace('\x00','')
 
+    def command(self, *args):
+        """
+        Send a raw command to the API.
 
-class Base(Core):
-    STATUS_CODE_TO_EXCEPTION = {
-        'W': WarningResponse,
-        'E': ErrorResponse,
-        'F': FatalResponse
-    }
+        This is a lower level method that assumes the command is the first
+        argument and that the rest of the arguments are parameters that should
+        be comma separated. 
 
+        The basic format of API commands is 'command|param1,param2,etc'. The meaning
+        of parameters depends greatly on the command provided. This method will return
+        odd results if poorly constructed commands are passed.
+        """
+        return self._send('{command}|{parameters}'.format(command=args[0],
+            parameters=','.join(args[1:])))
+
+    def _raise(self, response, message=None):
+        raise_exception(response, message)
+
+    def _send(self, command):
+        response = self.send_command(command)
+        try:
+            success = (response['STATUS'][0]['STATUS'] in [STATUS_INFO, STATUS_SUCCESS])
+        except:
+            raise UnknownError(response)
+
+        if not success:
+            self._raise(response)
+
+        return response
+
+
+class BaseClient(Core):
 
     def stats(self):
         """
@@ -109,38 +141,3 @@ class Base(Core):
             version['miner']['version'] = None
 
         return version
-
-    def command(self, *args):
-        """
-        Send a raw command to the API.
-
-        This is a lower level method that assumes the command is the first
-        argument and that the rest of the arguments are parameters that should
-        be comma separated. 
-
-        The basic format of API commands is 'command|param1,param2,etc'. The meaning
-        of parameters depends greatly on the command provided. This method will return
-        odd results if poorly constructed commands are passed.
-        """
-        return self._send('{command}|{parameters}'.format(command=args[0],
-            parameters=','.join(args[1:])))
-
-    def _raise(self, response, message=None):
-        try:
-            raise self.STATUS_CODE_TO_EXCEPTION[response['STATUS'][0]['STATUS']](response, message)
-        except KeyError, IndexError:
-            raise UnknownError(response)
-
-    def _send(self, command):
-        response = self.send_command(command)
-        try:
-            success = (response['STATUS'][0]['STATUS'] in [STATUS_INFO, STATUS_SUCCESS])
-        except KeyError, IndexError:
-            raise UnknownError(response)
-
-        if not success:
-            self._raise(response)
-
-        return response
-
-BaseClient = Base

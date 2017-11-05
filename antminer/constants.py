@@ -105,3 +105,4 @@ RESPONSE_CODES = {
     125: 'LCD',
     126: 'DEPRECATED',
 }
+
