@@ -141,3 +141,6 @@ class BaseClient(Core):
             version['miner']['version'] = None
 
         return version
+
+    def __getattr__(self, name, *args):
+        return lambda *x: self.command(name, *x)
